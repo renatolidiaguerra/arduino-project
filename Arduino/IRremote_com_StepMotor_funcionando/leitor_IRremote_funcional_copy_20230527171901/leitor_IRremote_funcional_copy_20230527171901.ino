@@ -1,0 +1,69 @@
+#include <IRrecv.h>
+#include <IRremoteESP8266.h>
+
+IRrecv irrecv(26);
+decode_results results;
+
+const int velocidade = 12;
+const int ledAmarelo = 27;
+const int rele = 26;
+
+void setup() {
+
+  pinMode(rele, OUTPUT);
+  pinMode(ledVerde, OUTPUT);
+  pinMode(ledAmarelo, OUTPUT);
+  irrecv.enableIRIn();  // Start the receiver
+  Serial.begin(115200);
+  digitalWrite(rele, LOW);
+}
+
+// codigos
+// 1= FFA25D
+// 2= FF629D
+// 3= FFE21D
+// 4= 
+// 5= 
+// 6= 
+// 7= 
+// 8= 
+// 9= 
+// 0=FF9867
+
+// ok=FF38C7
+// up=FF18E7
+// dw=FF4AB5
+// lf=FF10EF
+// rg=FF5AA5
+
+// The repeating section of the code
+void loop() {
+
+  // Check if the IR code has been received.
+  if (irrecv.decode(&results)) {
+
+    Serial.println(results.value, HEX);
+
+    if (results.value == 0xFF18E7) {   // up
+      velocidade = velocidade + 1;
+      Serial.println("faster");
+    }
+
+    if (results.value == 0xFF4AB5) {   // down
+      velocidade = velocidade - 1;
+      Serial.println("lower");
+    }    
+    if (results.value == 0xFF10EF) {   // left
+      digitalWrite(rele, HIGH);
+      Serial.println("left");
+    }    
+    if (results.value == 0xFF5AA5) {   // right
+      digitalWrite(rele, LOW);
+      Serial.println("right");
+    }    
+
+    delay(100);
+    irrecv.resume();
+
+  }
+}

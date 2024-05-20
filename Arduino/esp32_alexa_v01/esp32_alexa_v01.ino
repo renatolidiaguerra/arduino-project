@@ -11,7 +11,7 @@
 // prototypes
 boolean connectWifi();
 
-int pinGRN = 12;
+int pinGRN = 2;
 int pinYLW = 27;
 
 //callback functions
@@ -43,7 +43,7 @@ void setup() {
 
   if (wifiConnected) {
 
-    // Define your devices here.
+    // Define your devices here. -> aqui vai o nome do dispositivo na Alexa
     espalexa.addDevice("ESPDevice01", firstLightChanged);   //simplest definition, default state off
     espalexa.addDevice("ESPDevice02", secondLightChanged);  //third parameter is beginning state (here fully on)
 

@@ -1,6 +1,6 @@
 
 
-const int buttonPin = D0;  // the number of the pushbutton pin
+const int buttonPin = 13;  // the number of the pushbutton pin
 
 const int ledPin = 2;    // the number of the LED pin
 const int releA = 12;

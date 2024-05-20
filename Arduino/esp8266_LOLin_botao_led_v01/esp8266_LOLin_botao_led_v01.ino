@@ -1,6 +1,7 @@
 
 int botao1  = D6;
 int led     = D7;      // ok, funcionou
+int led_board = D2;
 
 bool LedState = 0;
 int buttonState = 0;

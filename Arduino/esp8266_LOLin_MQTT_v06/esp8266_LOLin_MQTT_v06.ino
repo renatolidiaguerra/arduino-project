@@ -57,24 +57,26 @@ void loop() {
   if (!mqttClient.connected()) {
     reconnect();
   }
-  Serial.print(".");
   mqttClient.loop(); // Manter a conexão MQTT ativa
 
-  currentButtonState = digitalRead(buttonPin);
-  if (currentButtonState == HIGH) {     // } && lastButtonState == LOW) {
-    guardState = !guardState;
-    delay(250);
+ Serial.print(".");
+ //Serial.print(currentButtonState);
+ currentButtonState = digitalRead(buttonPin);
+ Serial.println(currentButtonState);
+  if (currentButtonState == LOW) {     // } && lastButtonState == LOW) {
+    //guardState = !guardState;
+    //delay(250);
     Serial.println("Button Pressed");
     
-    lastButtonState = currentButtonState; // torna HIGH nos dois controles
+    //lastButtonState = currentButtonState; // torna HIGH nos dois controles
 
-    digitalWrite(D7, guardState); // Ativar ou desativar o LED conforme o estado do botão
+    //digitalWrite(D7, guardState); // Ativar ou desativar o LED conforme o estado do botão
 
-    if (guardState == LOW) {
-      mqttClient.publish(topicState, "OFF");
-    } else {
-      mqttClient.publish(topicState, "ON");
-    }
+    //if (guardState == LOW) {
+    //  mqttClient.publish(topicState, "OFF");
+    //} else {
+    //  mqttClient.publish(topicState, "ON");
+    //}
   }
   delay(100); // Pequeno atraso para evitar rebotes no botão
 }

@@ -1,3 +1,6 @@
+
+// DOIT ESP32 DEVKIT V1
+
 #include <PubSubClient.h>
 #include <WiFi.h>
 #include <Stepper.h>
@@ -61,10 +64,12 @@ void setup() {
   // 15: menor torque
   
   WiFi.begin(WIFISSID, WIFIPASS);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
   }
+
   Serial.println("Connected to WiFi");
 
   mqttClient.setServer(mqttServer, mqttPort);
@@ -80,6 +85,10 @@ void setup() {
   //Configura Sensores através do MQTT Discovery do Home Assistant
   String payloadConfig = "{\"name\": \"CortinaSala\", \"command_topic\": \"homeassistant/esp32/cortinasala/control\", \"state_topic\": \"homeassistant/esp32/cortinasala/state\"}";
   mqttClient.publish("homeassistant/esp32/cortinasala/config", payloadConfig.c_str(), true);
+
+
+  // solicita posicao do controle 
+  mqttClient.publish(topicState, "@000");
 
 }
 

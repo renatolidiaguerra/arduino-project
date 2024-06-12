@@ -55,6 +55,8 @@ int  contador_reboot = 0;
 int cont_debug = 0;
 int cont_debug_linha = 0;
 
+int controle_marcopolo = 2;
+
 // Crie um objeto stepper
 Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
 
@@ -107,6 +109,11 @@ void loop() {
   if (currentTime - lastMessageTime >= delay_resposta_mqtt) {
     mqttClient.publish(topicState, "online");
     lastMessageTime = currentTime; // Atualiza o tempo da última mensagem
+    controle_marcopolo -= 1;
+    if (controle_marcopolo <= 0) {
+      ESP.restart();
+    }
+
   }
   // ====================
   //    debug
@@ -145,7 +152,7 @@ void reconnect() {
       contador_reboot += 1;
       Serial.println("fora do ar");
       if (contador_reboot > 12) {
-        Serial.println("restartando");
+        Serial.println("< ========================= > restartando < ========================= > ");
         ESP.restart();
       }
     }
@@ -163,7 +170,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   //	6: velocidade
   // 	7: seta valor atual / posicao atual
   //  8: valor maximo
-  //  9: comunicação servidor
+  //  9: comunicação servidor (991; 992; 993; 999) 
 
 
   int qtde_voltas = 0;
@@ -173,6 +180,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
       qtde_voltas = qtde_voltas * 10 + (payload[i] - '0');
   }
 
+  // comunicacao com servidor
+  if (qtde_voltas == 999) {
+      Serial.println("< ========================= > restartando < ========================= > ");
+      ESP.restart();
+    return;
+  }
   // comunicacao com servidor
   if (qtde_voltas == 991) {
     mqttClient.publish(topicState, "online");
@@ -186,6 +199,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else { 
       mqttClient.publish(topicState, "online");
     }
+    return;
+  }
+
+  //   marco polo
+  if (qtde_voltas == 993) {
+    controle_marcopolo = 6;
+    Serial.print(".");
+    mqttClient.publish(topicState, "done:x993");
     return;
   }
 

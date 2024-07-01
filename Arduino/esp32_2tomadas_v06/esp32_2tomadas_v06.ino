@@ -26,8 +26,8 @@ const char* mqttServer = "192.168.15.10";
 const int mqttPort = 1883;
 const char* mqttUser = "renatobrito";
 const char* mqttPass = "gb240820";
-const char* topicControl = "nodemcu/smartplug/control";
-const char* topicState = "nodemcu/smartplug/state";
+const char* topicControl = "homeassistant/esp32/smartplug/control";
+const char* topicState =   "homeassistant/esp32/smartplug/state";
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -103,8 +103,8 @@ void setup() {
 
   mqttClient.subscribe(topicControl);  // Subscrever ao tópico para receber comandos
                                        //Configura Sensores através do MQTT Discovery do Home Assistant
-  String buttonConfig = "{\"expire_after\": \"120000\", \"name\": \"SmartPlug\", \"command_topic\": \"nodemcu/smartplug/control\", \"state_topic\": \"nodemcu/smartplug/state\"}";
-  mqttClient.publish("homeassistant/switch/nodemcu/smartplug/config", buttonConfig.c_str(), false);
+  String buttonConfig = "{\"expire_after\": \"120000\", \"name\": \"SmartPlug\", \"command_topic\": \"homeassistant/esp32/smartplug/control\", \"state_topic\": \"homeassistant/esp32/smartplug/state\"}";
+  mqttClient.publish("homeassistant/esp32/smartplug/config", buttonConfig.c_str(), false);
   // -------------- fim bloco
 }
 
@@ -261,6 +261,7 @@ void exibirStatusHA() {
   display.print("HA ");
   if (HA_CONNECTED) {
     display.print("ok");
+    mqttClient.publish(topicState, "online");
   } else {
     display.print(counterHA);
     display.print("/");

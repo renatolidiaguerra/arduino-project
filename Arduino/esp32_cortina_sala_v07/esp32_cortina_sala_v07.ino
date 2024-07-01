@@ -8,9 +8,9 @@
 #include <iostream>
 #include <cstring>
 
-// #include <Preferences.h>
+#include <Preferences.h>
 
-// Preferences preferences;
+Preferences preferences;
 
 // Informações do WiFi
 #define WIFISSID "warbrito"
@@ -21,8 +21,9 @@ const char* mqttServer = "192.168.15.10";
 const int mqttPort = 1883;
 const char* mqttUser = "renatobrito";
 const char* mqttPass = "gb240820";
-const char* topicControl = "homeassistant/esp32/cortinasala/control";
-const char* topicState   = "homeassistant/esp32/cortinasala/state";
+const char* topicControl   = "homeassistant/esp32/cortinasala/control";
+const char* topicState     = "homeassistant/esp32/cortinasala/state";
+const char* topicPosition  = "homeassistant/esp32/cortinasala/position";
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -67,6 +68,10 @@ Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4
 void setup() {
   Serial.begin(115200);
 
+  Serial.println("Iniciando configuração...");
+  Serial.println("Iniciando configuração...");
+  Serial.println("Iniciando configuração...");
+
   // Configure o motor para uma velocidade média
   myStepper.setSpeed(velocidade); // Ajuste conforme necessário para a velocidade desejada 
   // 10: minimo
@@ -74,9 +79,11 @@ void setup() {
   // 15: menor torque
   
   // inicia memoria gravavel
-  // preferences.begin("memoria", false);
+  preferences.begin("memoria", false);
   // le memoria e atualiza controle de voltas atual
-  // controle_voltas = preferences.getUInt("counter", 0);
+  controle_voltas = preferences.getUInt("counter", 0);
+  Serial.print("memoria.controle_voltas: ");
+  Serial.println(controle_voltas);
   // finaliza gravacao memoria
   // preferences.end();
 
@@ -88,6 +95,9 @@ void setup() {
   }
 
   Serial.println("Connected to WiFi");
+
+  Serial.print("memoria.controle_voltas: ");
+  Serial.println(controle_voltas);
 
   mqttClient.setServer(mqttServer, mqttPort);
 
@@ -105,7 +115,8 @@ void setup() {
 
 
   // solicita posicao do controle 
-  mqttClient.publish(topicState, "@000");
+  // mqttClient.publish(topicState, "@000");
+  publish_topicPosition(controle_voltas);
 
 }
 
@@ -119,6 +130,9 @@ void loop() {
   currentTime = millis(); 
   if (currentTime - lastMessageTime >= delay_resposta_mqtt) {
     mqttClient.publish(topicState, "online");
+
+    publish_topicPosition(controle_voltas);
+
     lastMessageTime = currentTime; // Atualiza o tempo da última mensagem
     controle_marcopolo -= 1;
     if (controle_marcopolo <= 0) {
@@ -200,6 +214,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // comunicacao com servidor
   if (qtde_voltas == 991) {
     mqttClient.publish(topicState, "online");
+
+    publish_topicPosition(controle_voltas);
+
     Serial.print("!!");
     return;
   }
@@ -210,6 +227,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else { 
       mqttClient.publish(topicState, "online");
     }
+    publish_topicPosition(controle_voltas);
     return;
   }
 
@@ -234,7 +252,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // recebe valor ATUAL! via topico
   if (qtde_voltas >= 700  && qtde_voltas <= 799) {
     controle_voltas = qtde_voltas - 700;
+
+    preferences.putUInt("counter", controle_voltas);
+
     mqttClient.publish(topicState, "done:x799");
+    publish_topicPosition(controle_voltas);
+
     Serial.print("  -  controle_voltas: ");
     Serial.print(controle_voltas);
     Serial.println("  -  Sending: +799");
@@ -265,11 +288,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  if (first_run) {
-    Serial.println("Necessita configurar posição atual!!");
-    mqttClient.publish(topicState, "error:@001");
-    return;
-  }
+  // if (first_run) {
+  //   Serial.println("Necessita configurar posição atual!!");
+  //   mqttClient.publish(topicState, "starting...");
+  //   return;
+  // }
 
   // recebe valor POSICIONAL via topico
   if (qtde_voltas >= 100 && qtde_voltas <= 199) {
@@ -290,6 +313,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
       voltas(posicao_desejada, +1);
       controle_voltas = controle_posicao;
+
+      preferences.putUInt("counter", controle_voltas);
+
       Serial.print(controle_voltas);
     } else {
       if (controle_posicao < controle_voltas) {
@@ -301,12 +327,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
         voltas((controle_voltas - controle_posicao), -1);
         controle_voltas = controle_posicao;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.print(controle_voltas);
       } else {
         Serial.print("igual");
       }
     }
     mqttClient.publish(topicState, "done:x100");
+    publish_topicPosition(controle_voltas);
     return;
   }
 
@@ -315,18 +345,30 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if (qtde_voltas > controle_voltas) {
         voltas(controle_voltas, -1);  
         controle_voltas = 0;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.println(" !!! <");
       } else {
         controle_voltas -= qtde_voltas;
+
+        preferences.putUInt("counter", controle_voltas);
+
         voltas(qtde_voltas, -1);
       }
     } else {
       if ((controle_voltas + qtde_voltas) > controle_voltas_max) {
         voltas(controle_voltas_max, +1);  
         controle_voltas = controle_voltas_max;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.println(" !!! >");
       } else {
         controle_voltas += qtde_voltas;
+
+        preferences.putUInt("counter", controle_voltas);
+
         voltas(qtde_voltas, +1);
       }
     }
@@ -351,8 +393,29 @@ void voltas(int qtde, int direcao)  // 1 = direita; -1 = esquerda
   digitalWrite(motorPin3,HIGH);
   digitalWrite(motorPin4,HIGH);
 
+  int aux_posicao = controle_voltas;
+
+  Serial.print("inicial aux_posicao:");
+  Serial.println(aux_posicao);
+  Serial.print(" ->");
+
   for (i = 0; i < qtde; i++) {
     myStepper.step(stepsPerRevolution * direcao);
+
+    if (direcao > 0) {
+      // soma
+      aux_posicao++;
+    } else {
+      // subtrai
+      aux_posicao--;
+    }
+
+    // grava posicao temporaria em memoria
+    preferences.putUInt("counter", aux_posicao);
+    // Serial.print("...");
+    // Serial.print(aux_posicao);
+    // publish_topicDebug(aux_posicao);
+  
     delay(delay_motor);
     mqttClient.loop();
   }
@@ -363,4 +426,26 @@ void voltas(int qtde, int direcao)  // 1 = direita; -1 = esquerda
   digitalWrite(motorPin4,LOW);
 
   Serial.print("[ok]");
+
+  Serial.print("final   aux_posicao:");
+  Serial.println(aux_posicao);
+
+}
+
+void publish_topicPosition(int valor)
+{
+  Serial.print("Gravando posicao:");
+  Serial.println(valor);
+  char buffer[10];
+  itoa(valor, buffer, 10);
+  mqttClient.publish(topicPosition, buffer);
+}
+
+void publish_topicDebug(int valor)
+{
+  const char* topicDebug  = "homeassistant/esp32/cortinasala/debug";
+
+  char buffer[10];
+  itoa(valor, buffer, 10);
+  mqttClient.publish(topicDebug, buffer);
 }

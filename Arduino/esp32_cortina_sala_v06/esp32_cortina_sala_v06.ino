@@ -8,9 +8,9 @@
 #include <iostream>
 #include <cstring>
 
-// #include <Preferences.h>
+#include <Preferences.h>
 
-// Preferences preferences;
+Preferences preferences;
 
 // Informações do WiFi
 #define WIFISSID "warbrito"
@@ -67,6 +67,10 @@ Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4
 void setup() {
   Serial.begin(115200);
 
+  Serial.println("Iniciando configuração...");
+  Serial.println("Iniciando configuração...");
+  Serial.println("Iniciando configuração...");
+
   // Configure o motor para uma velocidade média
   myStepper.setSpeed(velocidade); // Ajuste conforme necessário para a velocidade desejada 
   // 10: minimo
@@ -74,9 +78,11 @@ void setup() {
   // 15: menor torque
   
   // inicia memoria gravavel
-  // preferences.begin("memoria", false);
+  preferences.begin("memoria", false);
   // le memoria e atualiza controle de voltas atual
-  // controle_voltas = preferences.getUInt("counter", 0);
+  controle_voltas = preferences.getUInt("counter", 0);
+  Serial.print("memoria.controle_voltas: ");
+  Serial.println(controle_voltas);
   // finaliza gravacao memoria
   // preferences.end();
 
@@ -88,6 +94,9 @@ void setup() {
   }
 
   Serial.println("Connected to WiFi");
+
+  Serial.print("memoria.controle_voltas: ");
+  Serial.println(controle_voltas);
 
   mqttClient.setServer(mqttServer, mqttPort);
 
@@ -105,7 +114,7 @@ void setup() {
 
 
   // solicita posicao do controle 
-  mqttClient.publish(topicState, "@000");
+  // mqttClient.publish(topicState, "@000");
 
 }
 
@@ -234,6 +243,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
   // recebe valor ATUAL! via topico
   if (qtde_voltas >= 700  && qtde_voltas <= 799) {
     controle_voltas = qtde_voltas - 700;
+
+    preferences.putUInt("counter", controle_voltas);
+
     mqttClient.publish(topicState, "done:x799");
     Serial.print("  -  controle_voltas: ");
     Serial.print(controle_voltas);
@@ -265,11 +277,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  if (first_run) {
-    Serial.println("Necessita configurar posição atual!!");
-    mqttClient.publish(topicState, "error:@001");
-    return;
-  }
+  // if (first_run) {
+  //   Serial.println("Necessita configurar posição atual!!");
+  //   mqttClient.publish(topicState, "starting...");
+  //   return;
+  // }
 
   // recebe valor POSICIONAL via topico
   if (qtde_voltas >= 100 && qtde_voltas <= 199) {
@@ -290,6 +302,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
       voltas(posicao_desejada, +1);
       controle_voltas = controle_posicao;
+
+      preferences.putUInt("counter", controle_voltas);
+
       Serial.print(controle_voltas);
     } else {
       if (controle_posicao < controle_voltas) {
@@ -301,6 +316,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
         voltas((controle_voltas - controle_posicao), -1);
         controle_voltas = controle_posicao;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.print(controle_voltas);
       } else {
         Serial.print("igual");
@@ -315,18 +333,30 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if (qtde_voltas > controle_voltas) {
         voltas(controle_voltas, -1);  
         controle_voltas = 0;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.println(" !!! <");
       } else {
         controle_voltas -= qtde_voltas;
+
+        preferences.putUInt("counter", controle_voltas);
+
         voltas(qtde_voltas, -1);
       }
     } else {
       if ((controle_voltas + qtde_voltas) > controle_voltas_max) {
         voltas(controle_voltas_max, +1);  
         controle_voltas = controle_voltas_max;
+
+        preferences.putUInt("counter", controle_voltas);
+
         Serial.println(" !!! >");
       } else {
         controle_voltas += qtde_voltas;
+
+        preferences.putUInt("counter", controle_voltas);
+
         voltas(qtde_voltas, +1);
       }
     }

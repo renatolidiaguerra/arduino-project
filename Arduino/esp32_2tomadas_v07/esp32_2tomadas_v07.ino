@@ -5,6 +5,7 @@
 #include <WiFi.h>
 //#include <ESP32Ping.h> /*including the ping library*/
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
@@ -30,8 +31,10 @@ const char* mqttServer = "192.168.15.10";
 const int mqttPort = 1883;
 const char* mqttUser = "renatobrito";
 const char* mqttPass = "gb240820";
-const char* topicControl = "homeassistant/esp32/smartplug/control";
-const char* topicState =   "homeassistant/esp32/smartplug/state";
+// const char* topicControl = "homeassistant/esp32/smartplug/control";
+// const char* topicState =   "homeassistant/esp32/smartplug/state";
+String mqttName = "SmartPlug";
+String stateTopic = "home/generic/smartplug/state";   
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -104,11 +107,11 @@ void setup() {
   if (!mqttClient.connected()) {
     reconnect();
   }
-
-  mqttClient.subscribe(topicControl);  // Subscrever ao tópico para receber comandos
-                                       //Configura Sensores através do MQTT Discovery do Home Assistant
-  String buttonConfig = "{\"expire_after\": \"120000\", \"name\": \"SmartPlug\", \"command_topic\": \"homeassistant/esp32/smartplug/control\", \"state_topic\": \"homeassistant/esp32/smartplug/state\"}";
-  mqttClient.publish("homeassistant/esp32/smartplug/config", buttonConfig.c_str(), false);
+  sendMqttDiscovery();
+  // mqttClient.subscribe(topicControl);  // Subscrever ao tópico para receber comandos
+  //                                      //Configura Sensores através do MQTT Discovery do Home Assistant
+  // String buttonConfig = "{\"expire_after\": \"120000\", \"name\": \"SmartPlug\", \"command_topic\": \"homeassistant/esp32/smartplug/control\", \"state_topic\": \"homeassistant/esp32/smartplug/state\"}";
+  // mqttClient.publish("homeassistant/esp32/smartplug/config", buttonConfig.c_str(), false);
   // -------------- fim bloco
 }
 
@@ -163,7 +166,7 @@ void delay_function(int tempo) {
 void controleTotal() {
   // =============================================
 
-  // mqttClient.loop();// Manter a conexão MQTT ativa
+  mqttClient.loop();// Manter a conexão MQTT ativa
 
   checkSaudeRouter();
   checkSaudeHA();
@@ -264,11 +267,10 @@ void exibirStatusHA() {
   display.print("HA ");
   if (HA_CONNECTED) {
     display.print("ok");
-    mqttClient.publish(topicState, "online");
+    sendMqttStatus(true);
   } else {
     // grava erro identificado
-    mqttClient.publish(topicState, "error-ha");
-
+    sendMqttStatus(false);
     display.print(counterHA);
     display.print("/");
     display.println(maxCounterHA);
@@ -396,7 +398,7 @@ void checkRestartHA() {
   // =============================================
   if (counterHA >= maxCounterHA) {
     // grava mensagem de restart
-    mqttClient.publish(topicState, "restart-ha");
+    sendMqttStatus(false);
 
     counterHA = 0;
     acionarRestartHA();
@@ -480,6 +482,51 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 
   Serial.println();
+}
+
+
+void sendMqttDiscovery() {
+  String discoveryTopic = "homeassistant/binary_sensor/smarplug/config";
+
+  DynamicJsonDocument doc(1024);
+  char buffer[256];
+
+  // Definindo o nome do dispositivo, o tópico de estado e outros atributos do binary_sensor
+  doc["name"] = "SmartPlug";
+  doc["stat_t"] = stateTopic;  // Tópico de estado para o binary_sensor
+  doc["dev_cla"] = "connectivity";  // Classe de dispositivo: ajustável conforme o propósito
+  doc["frc_upd"] = true;  // Força a atualização do estado
+  doc["val_tpl"] = "{{ value_json.state | is_defined }}";  // Template para interpretar o estado como booleano
+  doc["expire_after"] = intervaloCheck * 1.5;  // O sensor será considerado inativo após 60 segundos sem atualizações
+
+  size_t n = serializeJson(doc, buffer);
+  mqttClient.publish(discoveryTopic.c_str(), buffer, n);
+
+  mqttClient.loop();
+  delay_function(100);
+}
+
+void sendMqttStatus(bool status) {
+    Serial.println("===== Sending Data =====");
+
+    DynamicJsonDocument doc(1024);
+    char buffer[256];
+
+    doc["state"] = status ? "ON" : "OFF";
+
+    size_t n = serializeJson(doc, buffer);
+    
+    bool published = mqttClient.publish(stateTopic.c_str(), buffer, n);
+    if (published) {
+      Serial.println("Data published successfully!");
+    } else {
+      Serial.println("Failed to publish data.");
+    }
+    // Importante: Chame client.loop() para manter a conexão MQTT viva
+    mqttClient.loop();
+
+    // Aguarde brevemente para garantir que as mensagens sejam enviadas antes de entrar em deep sleep
+    delay_function(100);
 }
 
 // =============================================

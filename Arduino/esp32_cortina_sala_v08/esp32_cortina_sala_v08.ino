@@ -65,6 +65,7 @@ int cont_debug = 0;
 int cont_debug_linha = 0;
 
 int controle_marcopolo = 2;
+int controle_loop = 0;
 
 // Crie um objeto stepper
 Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
@@ -93,12 +94,15 @@ void setup() {
 
   WiFi.begin(WIFISSID, WIFIPASS);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi...");
-  }
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
 
-  Serial.println("Connected to WiFi");
+  Serial.println("Connected to Wi-Fi");
+
+  // while (WiFi.status() != WL_CONNECTED) {
+  //   delay(1000);
+  //   Serial.println("Connecting to WiFi...");
+  // }
 
   Serial.print("memoria.controle_voltas: ");
   Serial.println(controle_voltas);
@@ -124,14 +128,22 @@ void setup() {
 }
 
 void loop() {
+
   if (!mqttClient.connected()) {
-    reconnect();
+    ESP.restart();
   }
   // Serial.print(".");
   mqttClient.loop(); // Manter a conexão MQTT ativa
 
   currentTime = millis(); 
   if (currentTime - lastMessageTime >= delay_resposta_mqtt) {
+
+    controle_loop += 1;
+
+    if (controle_loop > 100) {
+      ESP.restart();
+    } 
+
     mqttClient.publish(topicState, "online");
 
     publish_topicPosition(controle_voltas);

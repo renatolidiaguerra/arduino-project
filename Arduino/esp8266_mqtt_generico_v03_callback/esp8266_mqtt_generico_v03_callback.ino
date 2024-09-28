@@ -112,7 +112,11 @@ void setup() {
 
 void loop() {
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("===== Sending Data =====");
+    //Serial.println("===== Sending Data =====");
+
+    if (!client.connected()) {
+      reconnect();
+    }
 
     DynamicJsonDocument doc(1024);
     char buffer[256];
@@ -147,7 +151,7 @@ void loop() {
     
     bool published = client.publish(stateTopic.c_str(), buffer, n);
     if (published) {
-      Serial.println("Data published successfully!");
+      //Serial.println("Data published successfully!");
     } else {
       Serial.println("Failed to publish data.");
     }
@@ -158,6 +162,22 @@ void loop() {
     delay(100);
   } else {
     Serial.println("WiFi Disconnected");
+  }
+}
+
+
+void reconnect() {
+
+  while (!client.connected()) {
+    Serial.print("Connecting to MQTT... ");
+    if (client.connect(mqttName.c_str(), mqttUser, mqttPassword)) {
+      Serial.println("Connected!");
+    } else {
+      Serial.print("Failed, rc=");
+      Serial.println(client.state());
+      Serial.println(" Retrying in 5 seconds...");
+      delay(5000);
+    }
   }
 }
 
